@@ -60,6 +60,7 @@ To try the extension by hand, run `make spike-model build-ext`, then load `exten
 ml/          Python package: data, training, evaluation, ONNX export
 extension/   Chrome extension (TypeScript, WXT): content script, offscreen model host
 api/         Opt-in feedback API (Phase 5)
+tools/       Gold set labelling page (hosted as a claude.ai artifact)
 docs/        Design, results, model and dataset cards, blog drafts
 ```
 

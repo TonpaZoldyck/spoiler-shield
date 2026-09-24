@@ -1,0 +1,718 @@
+<title>Spoiler Gold Set</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root {
+    --bg: #eef0f4; --surface: #ffffff; --sunken: #f5f6f9; --ink: #151a23; --muted: #5a6272;
+    --line: #d9dde5; --accent: #1d6a86; --accent-ink: #ffffff;
+    --spoil: #b3302a; --spoil-soft: #f6e3e1; --clear: #2a7550; --clear-soft: #e0f0e7;
+    --unsure: #9a620a; --unsure-soft: #f6ebd6; --bar: #151a23;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #101319; --surface: #181c24; --sunken: #13171e; --ink: #e6e8ee; --muted: #9aa2b2;
+      --line: #2a303c; --accent: #63b4d1; --accent-ink: #0c1a20;
+      --spoil: #f0716a; --spoil-soft: #3a1f1e; --clear: #62c796; --clear-soft: #16302a;
+      --unsure: #e2ab4d; --unsure-soft: #33280f; --bar: #e6e8ee;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #101319; --surface: #181c24; --sunken: #13171e; --ink: #e6e8ee; --muted: #9aa2b2;
+    --line: #2a303c; --accent: #63b4d1; --accent-ink: #0c1a20;
+    --spoil: #f0716a; --spoil-soft: #3a1f1e; --clear: #62c796; --clear-soft: #16302a;
+    --unsure: #e2ab4d; --unsure-soft: #33280f; --bar: #e6e8ee;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); padding-inline: 16px; padding-block: 0 48px; }
+  .wrap { max-width: 1120px; margin: 0 auto; }
+  header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-block: 20px 16px; }
+  .brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+  .brand h1 { font: 600 1.35rem/1.2 var(--serif); margin: 0; letter-spacing: -0.01em; }
+  .brand span { font: 500 0.72rem var(--mono); color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .who { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--muted); }
+  .who img { width: 24px; height: 24px; border-radius: 50%; }
+  nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; overflow-x: auto; }
+  nav.tabs button { font: 500 0.92rem var(--sans); color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 14px; cursor: pointer; white-space: nowrap; }
+  nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+  nav.tabs button:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+  .side { display: flex; flex-direction: column; gap: 16px; }
+  h2 { font: 600 1.05rem/1.3 var(--sans); margin: 0 0 12px; text-wrap: balance; }
+  h3 { font: 600 0.78rem var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  p { margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  .banner { border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px; font-size: 0.9rem; border: 1px solid var(--line); background: var(--sunken); }
+  .banner.warn { border-color: var(--unsure); background: var(--unsure-soft); }
+
+  /* Labelling card */
+  .card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 18px; font-size: 0.85rem; color: var(--muted); }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 0.8rem; color: var(--ink); background: var(--sunken); }
+  .chip.title { font-weight: 600; }
+  .context { font: 400 1.02rem/1.55 var(--serif); color: var(--muted); border-left: 2px solid var(--line); padding-left: 12px; margin-bottom: 14px; }
+  .context:empty::before { content: "No previous sentence: this one opens its comment."; font-family: var(--sans); font-size: 0.85rem; font-style: italic; }
+  .sentence { position: relative; font: 400 clamp(1.25rem, 2.6vw, 1.6rem)/1.45 var(--serif); margin: 0 0 22px; display: inline; }
+  .sentence-box { margin-bottom: 26px; min-height: 3em; }
+  .sentence .ink { position: relative; background-image: linear-gradient(var(--bar), var(--bar)); background-repeat: no-repeat; background-size: 0% 72%; background-position: 0 60%; transition: background-size 260ms ease-in; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .sentence.redact .ink { background-size: 100% 72%; }
+  .sentence.cleared .ink { text-decoration: underline 3px var(--clear); text-underline-offset: 6px; }
+  @media (prefers-reduced-motion: reduce) { .sentence .ink { transition: none; } }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .btn { font: 500 0.95rem var(--sans); border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 10px 16px; cursor: pointer; display: inline-flex; align-items: center; gap: 10px; }
+  .btn:hover { border-color: var(--muted); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.spoil { background: var(--spoil); border-color: var(--spoil); color: #fff; }
+  .btn.clear { background: var(--clear); border-color: var(--clear); color: #fff; }
+  :root[data-theme="dark"] .btn.spoil, :root[data-theme="dark"] .btn.clear { color: #0f1216; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.spoil, :root:not([data-theme="light"]) .btn.clear { color: #0f1216; } }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.ghost { background: transparent; }
+  .btn[aria-pressed="true"] { background: var(--unsure-soft); border-color: var(--unsure); color: var(--unsure); }
+  kbd { font: 500 0.75rem var(--mono); border: 1px solid currentColor; border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; opacity: 0.85; }
+  .hint { font-size: 0.82rem; color: var(--muted); margin-top: 14px; }
+  .empty { text-align: center; padding: 40px 12px; }
+  .empty p { max-width: 42ch; margin-inline: auto; }
+
+  /* Stats */
+  .stat { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; margin-bottom: 12px; }
+  .stat .label { font-size: 0.88rem; }
+  .stat .value { font: 500 0.9rem var(--mono); font-variant-numeric: tabular-nums; }
+  .meter { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--sunken); border: 1px solid var(--line); overflow: hidden; }
+  .meter > i { display: block; height: 100%; background: var(--accent); width: 0; }
+  .rules { font-size: 0.86rem; }
+  .rules ul { margin: 0 0 12px; padding-left: 18px; }
+  .rules li { margin-bottom: 4px; }
+  .tag1 { color: var(--spoil); font-weight: 600; }
+  .tag0 { color: var(--clear); font-weight: 600; }
+
+  /* Forms */
+  form.add { display: grid; gap: 14px; }
+  .row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+  @media (max-width: 600px) { .row { grid-template-columns: 1fr; } }
+  label.field { display: grid; gap: 6px; font-size: 0.86rem; font-weight: 500; }
+  input[type="text"], input[type="url"], select, textarea { font: 400 0.95rem var(--sans); color: var(--ink); background: var(--sunken); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; width: 100%; }
+  textarea { min-height: 170px; resize: vertical; font-family: var(--serif); font-size: 1rem; line-height: 1.5; }
+  .preview { border: 1px solid var(--line); border-radius: 8px; max-height: 360px; overflow: auto; }
+  .preview ol { list-style: none; margin: 0; padding: 0; }
+  .preview li { display: grid; grid-template-columns: auto 1fr; gap: 10px; padding: 9px 12px; border-bottom: 1px solid var(--line); font-family: var(--serif); }
+  .preview li:last-child { border-bottom: 0; }
+  .preview li.skip { color: var(--muted); }
+  .preview li.break { border-top: 2px solid var(--line); }
+  .preview input { margin-top: 5px; }
+  .form-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .msg { font-size: 0.88rem; }
+  .msg.err { color: var(--spoil); }
+  .msg.ok { color: var(--clear); }
+
+  /* Tables */
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 600 0.72rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .pill { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 0.78rem; font-weight: 600; }
+  .pill.good { background: var(--clear-soft); color: var(--clear); }
+  .pill.mid { background: var(--unsure-soft); color: var(--unsure); }
+  .pill.bad { background: var(--spoil-soft); color: var(--spoil); }
+  .pill.none { background: var(--sunken); color: var(--muted); border: 1px solid var(--line); }
+  .dis { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+  .dis .s { font-family: var(--serif); margin-bottom: 8px; }
+  .dis .votes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.84rem; }
+  .threads td .actions { gap: 6px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  pre.export { max-height: 200px; overflow: auto; font: 0.78rem/1.4 var(--mono); background: var(--sunken); border: 1px solid var(--line); border-radius: 8px; padding: 10px; white-space: pre; }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><h1>Spoiler Gold Set</h1><span>Hand labels for the final test</span></div>
+    <div class="who" id="who"><span>Connecting…</span></div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" id="tab-label" aria-controls="view-label" aria-selected="true">Label</button>
+    <button role="tab" id="tab-add" aria-controls="view-add" aria-selected="false">Add sentences</button>
+    <button role="tab" id="tab-agree" aria-controls="view-agree" aria-selected="false">Agreement and export</button>
+  </nav>
+
+  <div id="status"></div>
+
+  <!-- LABEL -->
+  <section id="view-label" role="tabpanel" aria-labelledby="tab-label">
+    <div class="grid">
+      <div class="panel" id="label-card" aria-live="polite"></div>
+      <aside class="side">
+        <div class="panel" id="progress"></div>
+        <div class="panel rules">
+          <h3>The question</h3>
+          <p>Would someone who has started this title, but not finished it, learn a specific plot event they would rather discover themselves?</p>
+          <p><span class="tag1">Spoiler</span></p>
+          <ul>
+            <li>Deaths, survivals, serious injuries</li>
+            <li>Hidden identities and allegiances</li>
+            <li>Twists, or that a twist happens at a given point</li>
+            <li>How it ends, who wins or loses</li>
+            <li>Strong hints at a specific event</li>
+          </ul>
+          <p><span class="tag0">Not a spoiler</span></p>
+          <ul>
+            <li>Opinions on acting, music, visuals</li>
+            <li>The premise, up to the end of episode 1</li>
+            <li>Cast, dates, filming facts</li>
+            <li>Vague reactions: "that ending made me cry"</li>
+            <li>Questions and meta comments</li>
+          </ul>
+          <p class="muted">Specific beats vague. Judge this sentence with only the one before it. Full rules: <code>docs/labelling-guideline.md</code>.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ADD -->
+  <section id="view-add" role="tabpanel" aria-labelledby="tab-add" hidden>
+    <div class="grid">
+      <div class="panel">
+        <h2>Add a thread</h2>
+        <p class="muted">Paste comments from one public thread. Put each comment on its own line or paragraph. Sentences are split the same way the extension splits them, and each keeps the sentence before it as context. Leave usernames out.</p>
+        <form class="add" id="add-form" novalidate>
+          <div class="row">
+            <label class="field" for="f-title">Title being discussed
+              <input type="text" id="f-title" required autocomplete="off" placeholder="e.g. Severance">
+            </label>
+            <label class="field" for="f-site">Site
+              <select id="f-site">
+                <option value="reddit">Reddit</option>
+                <option value="letterboxd">Letterboxd</option>
+                <option value="youtube">YouTube</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+          </div>
+          <label class="field" for="f-link">Link to the thread
+            <input type="url" id="f-link" placeholder="https://www.reddit.com/r/…" autocomplete="off">
+          </label>
+          <label class="field" for="f-text">Comments
+            <textarea id="f-text"></textarea>
+          </label>
+          <div id="example-note" class="banner" hidden>This is an <strong>example thread</strong> about an invented show, so you can see how splitting works. Replace it with a real thread before adding. <button type="button" class="btn ghost" id="clear-example">Clear example</button></div>
+          <div>
+            <h3 id="preview-heading">Preview</h3>
+            <div class="preview" id="preview" aria-labelledby="preview-heading"></div>
+          </div>
+          <div class="form-foot">
+            <button type="submit" class="btn primary" id="add-btn">Add sentences</button>
+            <span class="msg" id="add-msg" role="status"></span>
+          </div>
+        </form>
+      </div>
+      <aside class="side">
+        <div class="panel">
+          <h3>Threads in the pool</h3>
+          <div id="threads"></div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- AGREE -->
+  <section id="view-agree" role="tabpanel" aria-labelledby="tab-agree" hidden>
+    <div class="grid">
+      <div class="panel">
+        <h2>Agreement between labellers</h2>
+        <p class="muted">Cohen's kappa on sentences both people labelled. The guideline asks for 0.6 or higher before labelling the rest. Disagreements are listed below for discussion; change your own label there if you've reconsidered.</p>
+        <div id="kappa"></div>
+        <h2 style="margin-top:24px">Disagreements</h2>
+        <div id="disagreements"></div>
+      </div>
+      <aside class="side">
+        <div class="panel">
+          <h3>Export</h3>
+          <p class="muted">One JSON line per sentence, in the training pipeline's schema. Where labellers disagree the label is left empty for review.</p>
+          <div id="export-summary" class="msg"></div>
+          <div class="actions" style="margin-top:10px">
+            <button class="btn primary" id="export-btn" type="button">Download gold set</button>
+          </div>
+          <span class="msg" id="export-msg" role="status"></span>
+          <pre class="export" id="export-fallback" hidden></pre>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- Sentence splitting: mirrors extension/lib/segment.ts ----------
+  const ABBR = new Set(["mr","mrs","ms","dr","prof","st","jr","sr","capt","lt","sgt","gen","col",
+    "vs","etc","e.g","i.e","approx","no","vol","ep","eps","pt","ch","fig","mt"].map(a => a + "."));
+  function endsWithAbbr(piece) {
+    const last = (piece.trimEnd().split(/\s+/).pop() || "").toLowerCase();
+    return ABBR.has(last) || /^[a-z]\.$/.test(last);
+  }
+  function splitSentences(text) {
+    const seg = new Intl.Segmenter("en", { granularity: "sentence" });
+    const out = []; let carry = "";
+    for (const { segment } of seg.segment(text)) {
+      carry += segment;
+      if (!endsWithAbbr(carry)) { out.push(carry); carry = ""; }
+    }
+    if (carry) out.push(carry);
+    return out.map(s => s.trim()).filter(Boolean);
+  }
+  // Mirrors ml/src/spoiler_shield/data/cleaning.py
+  const MARKUP = [/\(view spoiler\)\s*\[?/gi, /\(hide spoiler\)\s*\]?/gi, />!|!</g, /\[\/?spoilers?\]/gi, /\*\*?spoilers?( alert)?\*?\*?:?/gi];
+  function clean(s) {
+    for (const re of MARKUP) s = s.replace(re, " ");
+    return s.normalize("NFKC").replace(/\s+/g, " ").trim();
+  }
+  const usable = s => s.length >= 8 && s.split(/\s+/).length >= 2;
+
+  // ---------- State ----------
+  const state = {
+    db: null, user: null, downloads: null, me: null,
+    batches: [],             // [{id, title, link, site, createdAt, addedBy, sentences:[{text, context}]}]
+    labels: new Map(),       // docId -> {batchId, labeller, labels: {idx: {l, u, at}}}
+    created: new Set(),      // my label doc ids known to exist
+    unsure: false, revisit: null, history: [], busy: false,
+    tab: null,
+  };
+  const $ = id => document.getElementById(id);
+  const el = (tag, attrs = {}, ...kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "class") n.className = v; else if (k === "text") n.textContent = v;
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), v); else if (v !== false && v != null) n.setAttribute(k, v === true ? "" : v);
+    }
+    for (const kid of kids) if (kid != null) n.append(kid);
+    return n;
+  };
+
+  // ---------- Derived data ----------
+  const itemKey = (batchId, idx) => batchId + ":" + idx;
+  function allItems() {
+    const items = [];
+    for (const b of state.batches) (b.sentences || []).forEach((s, idx) => items.push({ batch: b, idx, text: s.text, context: s.context || "" }));
+    return items;
+  }
+  function labelsFor(batchId, idx) {
+    const out = [];
+    for (const doc of state.labels.values()) {
+      if (doc.batchId !== batchId) continue;
+      const e = doc.labels && doc.labels[idx];
+      if (e && (e.l === 0 || e.l === 1)) out.push({ labeller: doc.labeller, l: e.l, u: !!e.u });
+    }
+    return out;
+  }
+  function myLabel(batchId, idx) {
+    if (!state.me || !state.me.id) return null;
+    const doc = state.labels.get(batchId + "__" + state.me.id);
+    const e = doc && doc.labels && doc.labels[idx];
+    return e && (e.l === 0 || e.l === 1) ? e : null;
+  }
+  function nextItem() {
+    if (state.revisit) return state.revisit;
+    return allItems().find(it => !myLabel(it.batch.id, it.idx)) || null;
+  }
+  function labellerIds() {
+    const ids = new Set();
+    for (const d of state.labels.values()) if (d.labeller) ids.add(d.labeller);
+    return [...ids];
+  }
+
+  // ---------- Writes ----------
+  const writeChain = new Map();
+  async function writeLabel(item, l, u) {
+    const db = state.db, uid = state.me && state.me.id;
+    if (!db || !uid) return;
+    const docId = item.batch.id + "__" + uid;
+    const entry = { l, u: !!u, at: Date.now() };
+    // Optimistic local merge so the queue advances instantly.
+    const prev = state.labels.get(docId);
+    const merged = { batchId: item.batch.id, labeller: uid, labels: { ...(prev ? prev.labels : {}), [item.idx]: entry } };
+    state.labels.set(docId, merged);
+    const ref = db.collection("labels").doc(docId);
+    // Writes to one document run in order, so an update never overtakes the
+    // set that creates the document.
+    const isNew = !prev && !state.created.has(docId);
+    if (isNew) state.created.add(docId);
+    const run = () => (isNew ? ref.set(merged) : ref.update({ labels: { [item.idx]: entry } }));
+    const job = (writeChain.get(docId) || Promise.resolve()).catch(() => {}).then(run);
+    writeChain.set(docId, job);
+    try {
+      await job;
+    } catch (e) {
+      if (prev) state.labels.set(docId, prev); else state.labels.delete(docId);
+      if (isNew) state.created.delete(docId);
+      showStatus(dbErrorText(e), true);
+      render();
+    }
+  }
+  function dbErrorText(e) {
+    const code = e && e.code;
+    if (code === "quota_exceeded") return "The shared store is full. Export what you have, then remove threads you no longer need.";
+    if (code === "resource_exhausted") return "Saving too fast. Wait a few seconds, then continue.";
+    if (code === "revoked" || code === "not_granted") return "This view can no longer save labels. Reload the page.";
+    return "Couldn't save that change. Check your connection and try again.";
+  }
+
+  // ---------- Label view ----------
+  let animTimer = null;
+  function renderLabel() {
+    const card = $("label-card");
+    card.replaceChildren();
+    if (!state.db || !state.me || !state.me.id) {
+      card.append(el("div", { class: "empty" }, el("h2", { text: "Labelling needs a signed-in view" }), el("p", { class: "muted", text: "Open this page on claude.ai while signed in to your organization. Labels are stored against your account so agreement can be measured." })));
+      return;
+    }
+    const total = allItems().length;
+    if (total === 0) {
+      card.append(el("div", { class: "empty" },
+        el("h2", { text: "The queue is empty" }),
+        el("p", { class: "muted", text: "Add a thread of real comments to start. Each sentence becomes one item to label." }),
+        el("button", { class: "btn primary", type: "button", onclick: () => setTab("add") }, "Add a thread")));
+      return;
+    }
+    const item = nextItem();
+    if (!item) {
+      card.append(el("div", { class: "empty" },
+        el("h2", { text: "You've labelled everything in the pool" }),
+        el("p", { class: "muted", text: "Add another thread, or check agreement with your co-labeller." }),
+        el("div", { class: "actions", style: "justify-content:center" },
+          el("button", { class: "btn primary", type: "button", onclick: () => setTab("add") }, "Add a thread"),
+          el("button", { class: "btn", type: "button", onclick: () => setTab("agree") }, "Check agreement"))));
+      return;
+    }
+    const existing = myLabel(item.batch.id, item.idx);
+    const meta = el("div", { class: "card-meta" },
+      el("span", { class: "chip title", text: item.batch.title }),
+      el("span", { class: "chip", text: siteName(item.batch.site) }),
+      state.revisit ? el("span", { class: "chip", text: existing ? "Re-labelling: currently " + (existing.l ? "spoiler" : "not a spoiler") : "Going back" }) : null,
+      item.batch.link ? el("a", { href: item.batch.link, target: "_blank", rel: "noopener noreferrer", text: "Open thread" }) : null);
+    const ctx = el("div", { class: "context", text: item.context });
+    const sentence = el("p", { class: "sentence", id: "sentence" }, el("span", { class: "ink", text: item.text }));
+    const box = el("div", { class: "sentence-box" }, sentence);
+    const unsureBtn = el("button", { class: "btn", type: "button", "aria-pressed": String(state.unsure), onclick: toggleUnsure }, "Unsure ", el("kbd", { text: "U" }));
+    const actions = el("div", { class: "actions" },
+      el("button", { class: "btn spoil", type: "button", onclick: () => decide(1) }, "Spoiler ", el("kbd", { text: "1" })),
+      el("button", { class: "btn clear", type: "button", onclick: () => decide(0) }, "Not a spoiler ", el("kbd", { text: "0" })),
+      unsureBtn,
+      el("button", { class: "btn ghost", type: "button", disabled: state.history.length === 0, onclick: goBack }, "Back ", el("kbd", { text: "Z" })));
+    const hint = el("p", { class: "hint", text: "Unsure still records your best guess. It marks the sentence as genuinely ambiguous." });
+    card.append(meta, el("h3", { text: "Previous sentence" }), ctx, el("h3", { text: "Label this sentence" }), box, actions, hint);
+  }
+  function toggleUnsure() { state.unsure = !state.unsure; renderLabel(); }
+  function goBack() {
+    const prev = state.history.pop();
+    if (!prev) return;
+    state.revisit = prev; state.unsure = false; renderLabel();
+  }
+  function decide(l) {
+    if (state.busy) return;
+    const item = nextItem();
+    if (!item) return;
+    state.busy = true;
+    const s = $("sentence");
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (s) s.classList.add(l ? "redact" : "cleared");
+    const u = state.unsure;
+    writeLabel(item, l, u);
+    if (!state.revisit) state.history.push(item);
+    clearTimeout(animTimer);
+    animTimer = setTimeout(() => {
+      state.revisit = null; state.unsure = false; state.busy = false; render();
+    }, reduced ? 0 : 320);
+  }
+  document.addEventListener("keydown", e => {
+    if (state.tab !== "label" || e.metaKey || e.ctrlKey || e.altKey) return;
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+    if (e.key === "1") { e.preventDefault(); decide(1); }
+    else if (e.key === "0") { e.preventDefault(); decide(0); }
+    else if (e.key === "u" || e.key === "U") { e.preventDefault(); toggleUnsure(); }
+    else if (e.key === "z" || e.key === "Z") { e.preventDefault(); goBack(); }
+  });
+
+  function siteName(s) { return ({ reddit: "Reddit", letterboxd: "Letterboxd", youtube: "YouTube" })[s] || "Other"; }
+
+  // ---------- Progress ----------
+  const GOAL_MINE = 500, GOAL_DOUBLE = 200;
+  function renderProgress() {
+    const p = $("progress");
+    p.replaceChildren(el("h3", { text: "Progress" }));
+    const items = allItems();
+    let mine = 0, mySpoil = 0, double = 0;
+    for (const it of items) {
+      const m = myLabel(it.batch.id, it.idx);
+      if (m) { mine++; if (m.l === 1) mySpoil++; }
+      if (labelsFor(it.batch.id, it.idx).length >= 2) double++;
+    }
+    const stat = (label, value, frac) => el("div", { class: "stat" },
+      el("span", { class: "label", text: label }), el("span", { class: "value", text: value }),
+      frac == null ? null : el("div", { class: "meter", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(Math.round(frac * 100)), "aria-label": label }, el("i", { style: "width:" + Math.min(100, frac * 100).toFixed(1) + "%" })));
+    p.append(
+      stat("Sentences in the pool", String(items.length)),
+      stat("Labelled by you", mine + " / " + GOAL_MINE, mine / GOAL_MINE),
+      stat("Labelled by two people", double + " / " + GOAL_DOUBLE, double / GOAL_DOUBLE),
+      stat("Your spoiler share", mine ? Math.round(100 * mySpoil / mine) + "%" : "–"));
+  }
+
+  // ---------- Add view ----------
+  const EXAMPLE_TITLE = "Northwind (example)";
+  const EXAMPLE_TEXT = "That was the best episode of the season so far. The storm sequence looked incredible.\n\nI can't believe Mara was the informant all along. It explains the missing logbook from ep. 2.\n\nHonestly the pacing dragged in the first half, but the last ten minutes made up for it.\n\nSo Elias dies saving the crew. I did not expect them to kill off a main character this early.\n\nDoes anyone know if the finale is two parts?";
+  function parseThread(text) {
+    const out = [];
+    const paragraphs = text.split(/\n\s*\n|\r?\n/).map(s => s.trim()).filter(Boolean);
+    paragraphs.forEach((para, pi) => {
+      let prev = "";
+      splitSentences(para).forEach((raw, si) => {
+        const s = clean(raw);
+        if (!s) return;
+        out.push({ text: s, context: prev, ok: usable(s), first: si === 0 && pi > 0 });
+        prev = s;
+      });
+    });
+    return out;
+  }
+  let parsed = [];
+  function renderPreview() {
+    const text = $("f-text").value;
+    parsed = parseThread(text);
+    const box = $("preview");
+    box.replaceChildren();
+    if (!parsed.length) { box.append(el("p", { class: "muted", style: "padding:12px;margin:0", text: "Sentences will appear here as you paste." })); updateAddBtn(); return; }
+    const ol = el("ol");
+    parsed.forEach((p, i) => {
+      const id = "pv-" + i;
+      const cb = el("input", { type: "checkbox", id, checked: p.ok, onchange: e => { p.ok = e.target.checked; li.classList.toggle("skip", !p.ok); updateAddBtn(); } });
+      const li = el("li", { class: (p.ok ? "" : "skip") + (p.first ? " break" : "") }, cb, el("label", { for: id, text: p.text }));
+      ol.append(li);
+    });
+    box.append(ol);
+    $("example-note").hidden = !(text.trim() === EXAMPLE_TEXT.trim());
+    updateAddBtn();
+  }
+  function updateAddBtn() {
+    const n = parsed.filter(p => p.ok).length;
+    $("add-btn").textContent = n ? "Add " + n + " sentence" + (n === 1 ? "" : "s") : "Add sentences";
+    $("add-btn").disabled = !n || !state.db || !(state.me && state.me.id);
+  }
+  function loadExample() { $("f-title").value = EXAMPLE_TITLE; $("f-text").value = EXAMPLE_TEXT; renderPreview(); }
+  $("f-text").addEventListener("input", renderPreview);
+  $("clear-example").addEventListener("click", () => { $("f-title").value = ""; $("f-text").value = ""; $("f-link").value = ""; renderPreview(); $("f-title").focus(); });
+  $("add-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const msg = $("add-msg"); msg.className = "msg"; msg.textContent = "";
+    const title = $("f-title").value.trim(), link = $("f-link").value.trim(), text = $("f-text").value;
+    if (text.trim() === EXAMPLE_TEXT.trim() || title === EXAMPLE_TITLE) { msg.className = "msg err"; msg.textContent = "That's the example thread. Paste comments from a real thread first."; return; }
+    if (!title) { msg.className = "msg err"; msg.textContent = "Add the title being discussed, so the sentence is judged against it."; $("f-title").focus(); return; }
+    if (link && !/^https?:\/\/\S+$/i.test(link)) { msg.className = "msg err"; msg.textContent = "The link should start with https://."; $("f-link").focus(); return; }
+    const keep = parsed.filter(p => p.ok).map(p => ({ text: p.text, context: p.context }));
+    if (!keep.length) { msg.className = "msg err"; msg.textContent = "Tick at least one sentence to add."; return; }
+    if (keep.length > 400) { msg.className = "msg err"; msg.textContent = "That's over 400 sentences. Split it into smaller threads."; return; }
+    $("add-btn").disabled = true;
+    try {
+      await state.db.collection("batches").add({ title, link, site: $("f-site").value, createdAt: Date.now(), addedBy: state.me.id, sentences: keep });
+      msg.className = "msg ok"; msg.textContent = "Added " + keep.length + " sentences to the queue.";
+      $("f-text").value = ""; $("f-link").value = ""; renderPreview();
+    } catch (err) {
+      msg.className = "msg err"; msg.textContent = dbErrorText(err);
+    } finally { updateAddBtn(); }
+  });
+
+  const confirming = new Set();
+  async function renderThreads() {
+    const box = $("threads");
+    box.replaceChildren();
+    if (!state.batches.length) { box.append(el("p", { class: "muted", text: "No threads yet." })); return; }
+    const ids = [...new Set(state.batches.map(b => b.addedBy).filter(Boolean))];
+    const people = state.user && ids.length ? await state.user.profiles(ids) : {};
+    const table = el("table", { class: "threads" }, el("thead", {}, el("tr", {}, el("th", { text: "Thread" }), el("th", { text: "Sentences" }), el("th", { text: "" }))));
+    const tb = el("tbody");
+    for (const b of [...state.batches].reverse()) {
+      const who = people[b.addedBy] ? (people[b.addedBy].name || "Someone") : "Someone";
+      const rm = el("button", { class: "btn ghost", type: "button", onclick: () => removeBatch(b) }, confirming.has(b.id) ? "Confirm remove" : "Remove");
+      tb.append(el("tr", {},
+        el("td", {}, el("div", { text: b.title }), el("div", { class: "muted", style: "font-size:0.8rem", text: siteName(b.site) + ", added by " + who })),
+        el("td", { class: "num", text: String((b.sentences || []).length) }),
+        el("td", {}, rm)));
+    }
+    table.append(tb);
+    box.append(el("div", { class: "table-wrap" }, table));
+  }
+  async function removeBatch(b) {
+    if (!confirming.has(b.id)) { confirming.add(b.id); renderThreads(); setTimeout(() => { confirming.delete(b.id); renderThreads(); }, 4000); return; }
+    confirming.delete(b.id);
+    try {
+      await state.db.doc("batches/" + b.id).delete();
+      for (const [id, d] of state.labels) if (d.batchId === b.id) await state.db.doc("labels/" + id).delete();
+    } catch (err) { showStatus(dbErrorText(err), true); }
+  }
+
+  // ---------- Agreement ----------
+  function kappa(pairs) {
+    const n = pairs.length;
+    if (!n) return { n: 0, po: NaN, k: NaN };
+    let agree = 0, a1 = 0, b1 = 0;
+    for (const [a, b] of pairs) { if (a === b) agree++; a1 += a; b1 += b; }
+    const po = agree / n, pa = a1 / n, pb = b1 / n;
+    const pe = pa * pb + (1 - pa) * (1 - pb);
+    return { n, po, k: pe === 1 ? NaN : (po - pe) / (1 - pe) };
+  }
+  function verdict(res) {
+    if (res.n < 30) return ["none", "Too few overlaps"];
+    if (Number.isNaN(res.k)) return ["none", "Undefined"];
+    if (res.k >= 0.6) return ["good", "Guideline works"];
+    if (res.k >= 0.4) return ["mid", "Revise guideline"];
+    return ["bad", "Poor agreement"];
+  }
+  async function renderAgreement() {
+    const ids = labellerIds();
+    const people = state.user && ids.length ? await state.user.profiles(ids) : {};
+    const nameOf = id => (people[id] && people[id].name) || (state.me && id === state.me.id ? "You" : "Someone");
+    const items = allItems();
+    const box = $("kappa"); box.replaceChildren();
+    const rows = [];
+    for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+      const pairs = [];
+      for (const it of items) {
+        const ls = labelsFor(it.batch.id, it.idx);
+        const a = ls.find(x => x.labeller === ids[i]), b = ls.find(x => x.labeller === ids[j]);
+        if (a && b) pairs.push([a.l, b.l]);
+      }
+      if (pairs.length) rows.push({ a: ids[i], b: ids[j], ...kappa(pairs) });
+    }
+    if (!rows.length) {
+      box.append(el("p", { class: "muted", text: "No sentence has been labelled by two people yet. Ask your co-labeller to open this page and label the same threads. They won't see your labels." }));
+    } else {
+      const t = el("table", {}, el("thead", {}, el("tr", {}, ...["Labellers", "Shared", "Agreement", "Kappa", ""].map(h => el("th", { text: h })))));
+      const tb = el("tbody");
+      for (const r of rows) {
+        const [cls, txt] = verdict(r);
+        tb.append(el("tr", {},
+          el("td", { text: nameOf(r.a) + " and " + nameOf(r.b) }),
+          el("td", { class: "num", text: String(r.n) }),
+          el("td", { class: "num", text: Number.isNaN(r.po) ? "–" : Math.round(r.po * 100) + "%" }),
+          el("td", { class: "num", text: Number.isNaN(r.k) ? "–" : r.k.toFixed(2) }),
+          el("td", {}, el("span", { class: "pill " + cls, text: txt }))));
+      }
+      t.append(tb);
+      box.append(el("div", { class: "table-wrap" }, t));
+    }
+    // Disagreements
+    const dbox = $("disagreements"); dbox.replaceChildren();
+    const dis = items.filter(it => { const ls = labelsFor(it.batch.id, it.idx); return ls.length >= 2 && new Set(ls.map(x => x.l)).size > 1; });
+    if (!dis.length) { dbox.append(el("p", { class: "muted", text: "None so far." })); }
+    for (const it of dis.slice(0, 100)) {
+      const ls = labelsFor(it.batch.id, it.idx);
+      const mine = myLabel(it.batch.id, it.idx);
+      const votes = el("div", { class: "votes" }, ...ls.map(x => el("span", { class: "pill " + (x.l ? "bad" : "good"), text: nameOf(x.labeller) + ": " + (x.l ? "spoiler" : "not") + (x.u ? " (unsure)" : "") })));
+      if (mine) votes.append(el("button", { class: "btn ghost", type: "button", onclick: () => writeLabel(it, mine.l ? 0 : 1, mine.u) }, "Change mine to " + (mine.l ? "not a spoiler" : "spoiler")));
+      dbox.append(el("div", { class: "dis" },
+        el("div", { class: "muted", style: "font-size:0.8rem;margin-bottom:4px", text: it.batch.title + (it.context ? " · after: “" + it.context + "”" : "") }),
+        el("div", { class: "s", text: it.text }), votes));
+    }
+    if (dis.length > 100) dbox.append(el("p", { class: "muted", text: "Showing the first 100 of " + dis.length + "." }));
+    renderExportSummary();
+  }
+
+  // ---------- Export ----------
+  const slug = s => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "untitled";
+  function buildExport() {
+    const lines = []; let agreed = 0, open = 0;
+    for (const it of allItems()) {
+      const ls = labelsFor(it.batch.id, it.idx);
+      if (!ls.length) continue;
+      const values = new Set(ls.map(x => x.l));
+      const label = values.size === 1 ? ls[0].l : null;
+      if (label === null) open++; else agreed++;
+      lines.push(JSON.stringify({
+        example_id: "gold:" + it.batch.id + ":" + it.idx, source: "gold",
+        title_id: "gold:" + slug(it.batch.title), title: it.batch.title,
+        sentence: it.text, context: it.context, label, review_id: "gold:" + it.batch.id,
+      }));
+    }
+    return { text: lines.join("\n") + (lines.length ? "\n" : ""), agreed, open, n: lines.length };
+  }
+  function renderExportSummary() {
+    const x = buildExport();
+    $("export-summary").textContent = x.n ? x.n + " labelled sentences: " + x.agreed + " with an agreed label, " + x.open + " waiting for review." : "Nothing labelled yet.";
+    $("export-btn").disabled = !x.n;
+  }
+  $("export-btn").addEventListener("click", async () => {
+    const x = buildExport(), msg = $("export-msg"); msg.className = "msg"; msg.textContent = "";
+    if (state.downloads) {
+      try { const r = await state.downloads.save({ filename: "gold-set.jsonl", data: x.text }); if (r.status === "saved") { msg.className = "msg ok"; msg.textContent = "Saved gold-set.jsonl."; } return; }
+      catch (err) { if (err && err.code === "declined") return; }
+    }
+    const pre = $("export-fallback"); pre.hidden = false; pre.textContent = x.text;
+    msg.textContent = "Downloads aren't available here. Copy the lines below instead.";
+  });
+
+  // ---------- Tabs, status, render ----------
+  function setTab(name) {
+    state.tab = name;
+    for (const t of ["label", "add", "agree"]) {
+      $("tab-" + t).setAttribute("aria-selected", String(t === name));
+      $("view-" + t).hidden = t !== name;
+    }
+    try { localStorage.setItem("gold-tab", name); } catch (_) {}
+    render();
+  }
+  for (const t of ["label", "add", "agree"]) $("tab-" + t).addEventListener("click", () => setTab(t));
+  function showStatus(text, warn) {
+    const s = $("status"); s.replaceChildren();
+    if (text) s.append(el("div", { class: "banner" + (warn ? " warn" : ""), role: "status", text }));
+  }
+  function render() {
+    renderLabel(); renderProgress(); updateAddBtn();
+    if (state.tab === "add") renderThreads();
+    if (state.tab === "agree") renderAgreement();
+  }
+  async function renderWho() {
+    const w = $("who"); w.replaceChildren();
+    if (!state.me || !state.me.id) { w.append(el("span", { text: "Not signed in here" })); return; }
+    w.append(el("img", { src: state.me.avatarUrl, alt: "" }), el("span", { text: "Labelling as " + (state.me.name || "you") }));
+  }
+
+  // ---------- Boot ----------
+  loadExample();
+  let initialTab = "label";
+  try { initialTab = localStorage.getItem("gold-tab") || "label"; } catch (_) {}
+  setTab(initialTab);
+
+  (async () => {
+    const claude = window.claude;
+    if (!claude || !claude.use) { showStatus("Shared storage isn't available in this view, so labels can't be saved. Open the page on claude.ai.", true); renderWho(); return; }
+    const [db, user, downloads] = await Promise.all([claude.use("db"), claude.use("user"), claude.use("downloads")]);
+    state.db = db; state.user = user; state.downloads = downloads;
+    state.me = user ? await user.me() : null;
+    renderWho();
+    if (!db) { showStatus("Shared storage isn't available in this view, so labels can't be saved.", true); render(); return; }
+    let firstBatches = true;
+    db.collection("batches").orderBy("createdAt").onSnapshot(snap => {
+      state.batches = snap.docs.filter(d => d.exists).map(d => ({ id: d.id, ...d.data() }));
+      if (firstBatches) { firstBatches = false; if (!state.batches.length && state.tab === "label") { setTab("add"); return; } }
+      render();
+    }, err => showStatus(dbErrorText(err), true));
+    db.collection("labels").onSnapshot(snap => {
+      const next = new Map();
+      for (const d of snap.docs) if (d.exists) next.set(d.id, d.data());
+      // Keep optimistic entries until the server echoes them.
+      for (const [id, v] of state.labels) if (!next.has(id) && state.created.has(id)) next.set(id, v);
+      for (const id of next.keys()) if (state.me && id.endsWith("__" + state.me.id)) state.created.add(id);
+      state.labels = next;
+      if (!state.busy) render();
+    }, err => showStatus(dbErrorText(err), true));
+  })();
+})();
+</script>
