@@ -1,0 +1,96 @@
+{
+  "measuredAt": "2026-09-24T10:13:17.723Z",
+  "model": {
+    "warning": "Random weights. Predictions are meaningless; use for size and latency only.",
+    "architecture": "BertForSequenceClassification, MiniLM-L6-H384 shape",
+    "seed": 0,
+    "parameters": 22713986,
+    "tokenizer_vocab_trained": 14369,
+    "onnx_opset": 17,
+    "fp32_mb": 90.86,
+    "int8_mb": 22.91,
+    "max_abs_diff_torch_vs_onnx_fp32": 1.7881393432617188e-7,
+    "max_abs_diff_fp32_vs_int8": 0.004739969968795776,
+    "max_abs_diff_torch_vs_onnx_other_shape": 1.341104507446289e-7
+  },
+  "runs": [
+    {
+      "label": "Single thread",
+      "res": {
+        "ok": true,
+        "backend": "wasm",
+        "threads": 1,
+        "crossOriginIsolated": true,
+        "loadMs": 1319.7150000000838,
+        "meanTokens": 18.145833333333332,
+        "results": [
+          {
+            "batchSize": 1,
+            "iterations": 60,
+            "p50MsPerSentence": 18.202499999897555,
+            "p95MsPerSentence": 52.55124999992547,
+            "p50MsPerCall": 18.202499999897555,
+            "p95MsPerCall": 52.55124999992547
+          },
+          {
+            "batchSize": 8,
+            "iterations": 60,
+            "p50MsPerSentence": 13.724999999991269,
+            "p95MsPerSentence": 15.943124999995051,
+            "p50MsPerCall": 109.79999999993015,
+            "p95MsPerCall": 127.54499999996041
+          },
+          {
+            "batchSize": 16,
+            "iterations": 60,
+            "p50MsPerSentence": 14.323437499995634,
+            "p95MsPerSentence": 16.916249999994033,
+            "p50MsPerCall": 229.17499999993015,
+            "p95MsPerCall": 270.6599999999045
+          }
+        ],
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36",
+        "hardwareConcurrency": 4
+      }
+    },
+    {
+      "label": "Multi-threaded (default)",
+      "res": {
+        "ok": true,
+        "backend": "wasm",
+        "threads": 4,
+        "crossOriginIsolated": true,
+        "loadMs": 1484.4650000000838,
+        "meanTokens": 18.145833333333332,
+        "results": [
+          {
+            "batchSize": 1,
+            "iterations": 60,
+            "p50MsPerSentence": 17.62000000011176,
+            "p95MsPerSentence": 25.669749999837943,
+            "p50MsPerCall": 17.62000000011176,
+            "p95MsPerCall": 25.669749999837943
+          },
+          {
+            "batchSize": 8,
+            "iterations": 60,
+            "p50MsPerSentence": 5.348124999989523,
+            "p95MsPerSentence": 14.367093749991907,
+            "p50MsPerCall": 42.78499999991618,
+            "p95MsPerCall": 114.93674999993526
+          },
+          {
+            "batchSize": 16,
+            "iterations": 60,
+            "p50MsPerSentence": 4.677968750002037,
+            "p95MsPerSentence": 7.339218750003054,
+            "p50MsPerCall": 74.8475000000326,
+            "p95MsPerCall": 117.42750000004887
+          }
+        ],
+        "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36",
+        "hardwareConcurrency": 4
+      }
+    }
+  ]
+}

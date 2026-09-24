@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+.output/
+.wxt/
+dist/
+*.zip
+test-results/
+playwright-report/
+
+# Data and model artefacts (tracked with DVC, never git)
+/data/
+ml/artifacts/
+extension/public/models/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/

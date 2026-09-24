@@ -1,0 +1,35 @@
+{
+  "name": "spoiler-shield-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Chrome extension that blurs film and TV spoilers using an on-device model.",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "wxt build && playwright test --project=e2e",
+    "bench": "wxt build && playwright test --project=bench",
+    "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/chrome": "^0.3.0",
+    "jsdom": "^30.1.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1",
+    "wxt": "^0.21.4"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "onnxruntime-node",
+      "protobufjs"
+    ]
+  },
+  "packageManager": "pnpm@10.33.0"
+}
