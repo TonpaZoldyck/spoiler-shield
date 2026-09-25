@@ -48,6 +48,23 @@ For each sentence, you see the **title** and the **previous sentence**, exactly 
 - Store the sentence, the previous sentence, the title and a link to the thread. The published dataset will hold labels and links, not raw text.
 - Aim for a mix: about half from discussion threads after new episodes, where spoilers are common, and half from general threads.
 
+## How labels are made
+
+Labelling is LLM-assisted, with a person making every final call:
+
+1. **Claude pre-labels** each thread as soon as it is added, with a short reason per sentence.
+2. **A person reviews every sentence.** On most sentences Claude's label is shown, and the person agrees (Enter) or overrides it (1 or 0).
+3. **One sentence in four is blind.** Claude's label stays hidden and the person decides alone. Which sentences are blind is fixed by a hash, so it can't be gamed.
+
+Only reviewed labels become gold. Claude's labels alone never do.
+
 ## Agreement check
 
-About 200 sentences are labelled independently by a second person. We report Cohen's kappa between the two labellers. Below 0.6 means the guideline is unclear and needs revising before the remaining sentences are labelled.
+Agreement is measured between the person and Claude **on blind sentences only**, reported as Cohen's kappa. The target is at least 125 blind sentences. Below 0.6 means the guideline is unclear, or Claude is unreliable on this task, and both need a look before labelling continues.
+
+Two further numbers guard against over-trusting the suggestions:
+
+- **Kept rate:** how often the person keeps Claude's label when it is shown. If it runs well above blind agreement, the person is anchoring on Claude, so slow down.
+- **Blind-only evaluation:** the Phase 2 labeller check (kappa of 0.7 or higher) and any headline gold-set number are also reported on the blind slice, because shown sentences may carry Claude's influence.
+
+A second person is optional. If one joins, human-to-human kappa is reported alongside.

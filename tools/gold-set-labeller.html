@@ -78,6 +78,13 @@
   .btn[aria-pressed="true"] { background: var(--unsure-soft); border-color: var(--unsure); color: var(--unsure); }
   kbd { font: 500 0.75rem var(--mono); border: 1px solid currentColor; border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; opacity: 0.85; }
   .hint { font-size: 0.82rem; color: var(--muted); margin-top: 14px; }
+  .suggest { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; border: 1px dashed var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 18px; font-size: 0.9rem; background: var(--sunken); }
+  .suggest .who { font: 600 0.72rem var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .suggest .verdict1 { color: var(--spoil); font-weight: 600; }
+  .suggest .verdict0 { color: var(--clear); font-weight: 600; }
+  .suggest .why { color: var(--muted); font-style: italic; }
+  .suggest.blind { border-style: solid; }
+  .working { font-size: 0.85rem; color: var(--accent); }
   .empty { text-align: center; padding: 40px 12px; }
   .empty p { max-width: 42ch; margin-inline: auto; }
 
@@ -171,6 +178,7 @@
             <li>Questions and meta comments</li>
           </ul>
           <p class="muted">Specific beats vague. Judge this sentence with only the one before it. Full rules: <code>docs/labelling-guideline.md</code>.</p>
+          <p class="muted">Claude pre-labels each thread. You make the final call. One sentence in four is <strong>blind</strong>: Claude's answer stays hidden so we can measure how often Claude is right.</p>
         </div>
       </aside>
     </div>
@@ -226,8 +234,11 @@
   <section id="view-agree" role="tabpanel" aria-labelledby="tab-agree" hidden>
     <div class="grid">
       <div class="panel">
-        <h2>Agreement between labellers</h2>
-        <p class="muted">Cohen's kappa on sentences both people labelled. The guideline asks for 0.6 or higher before labelling the rest. Disagreements are listed below for discussion; change your own label there if you've reconsidered.</p>
+        <h2>You and Claude</h2>
+        <p class="muted">Measured only on blind sentences, where you answered without seeing Claude's label. This tells us how far Claude's labels can be trusted, and it is the agreement check the guideline asks for.</p>
+        <div id="claude-agree"></div>
+        <h2 style="margin-top:24px">Between people</h2>
+        <p class="muted">Only needed if a second person labels too. Cohen's kappa on sentences both of you labelled.</p>
         <div id="kappa"></div>
         <h2 style="margin-top:24px">Disagreements</h2>
         <div id="disagreements"></div>
@@ -235,7 +246,7 @@
       <aside class="side">
         <div class="panel">
           <h3>Export</h3>
-          <p class="muted">One JSON line per sentence, in the training pipeline's schema. Where labellers disagree the label is left empty for review.</p>
+          <p class="muted">One JSON line per sentence you have reviewed, in the training pipeline's schema. Claude's labels alone never count as gold. Where people disagree the label is left empty for review.</p>
           <div id="export-summary" class="msg"></div>
           <div class="actions" style="margin-top:10px">
             <button class="btn primary" id="export-btn" type="button">Download gold set</button>
@@ -279,7 +290,8 @@
 
   // ---------- State ----------
   const state = {
-    db: null, user: null, downloads: null, me: null,
+    db: null, user: null, downloads: null, sample: null, me: null,
+    prelabelling: new Set(),  // batch ids Claude is labelling right now
     batches: [],             // [{id, title, link, site, createdAt, addedBy, sentences:[{text, context}]}]
     labels: new Map(),       // docId -> {batchId, labeller, labels: {idx: {l, u, at}}}
     created: new Set(),      // my label doc ids known to exist
@@ -321,12 +333,28 @@
   }
   function nextItem() {
     if (state.revisit) return state.revisit;
-    return allItems().find(it => !myLabel(it.batch.id, it.idx)) || null;
+    const open = allItems().filter(it => !myLabel(it.batch.id, it.idx));
+    return open.find(it => !state.prelabelling.has(it.batch.id)) || open[0] || null;
   }
+  const CLAUDE = "claude";
   function labellerIds() {
     const ids = new Set();
-    for (const d of state.labels.values()) if (d.labeller) ids.add(d.labeller);
+    for (const d of state.labels.values()) if (d.labeller && d.labeller !== CLAUDE) ids.add(d.labeller);
     return [...ids];
+  }
+  function humanLabelsFor(batchId, idx) { return labelsFor(batchId, idx).filter(x => x.labeller !== CLAUDE); }
+  function claudeLabel(batchId, idx) {
+    const doc = state.labels.get(batchId + "__" + CLAUDE);
+    const e = doc && doc.labels && doc.labels[idx];
+    return e && (e.l === 0 || e.l === 1) ? e : null;
+  }
+  // One sentence in four is blind: Claude's label stays hidden while you decide.
+  // Deterministic, so every viewer and every reload agrees on which ones.
+  function isBlind(batchId, idx) {
+    let h = 2166136261;
+    const key = batchId + ":" + idx;
+    for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return ((h >>> 0) % 4) === 0;
   }
 
   // ---------- Writes ----------
@@ -363,6 +391,62 @@
     if (code === "resource_exhausted") return "Saving too fast. Wait a few seconds, then continue.";
     if (code === "revoked" || code === "not_granted") return "This view can no longer save labels. Reload the page.";
     return "Couldn't save that change. Check your connection and try again.";
+  }
+
+  // ---------- Claude pre-labels ----------
+  const RULES = [
+    "You are labelling sentences from online discussion of films and TV for a spoiler-detection test set.",
+    "For each sentence, answer: would someone who has started this title, but not finished it, learn a specific plot event they would rather discover themselves?",
+    "Spoiler (1): deaths, survivals or serious injuries; hidden identities or allegiances revealed; twists, or that a twist happens at a given point; how it ends or who wins or loses; plot-significant relationship outcomes; strong hints that imply a specific event.",
+    "Not a spoiler (0): opinions on quality, acting, music or visuals; the premise up to the end of the first episode or first act; cast, dates, filming facts; vague reactions without event information; questions that reveal nothing; meta comments about spoilers.",
+    "Tie-breakers: judge only the sentence, using the previous sentence as context. Specific beats vague: 'someone dies' is 0 unless context makes clear who. Sarcasm counts if a reader would still learn the event. If it spoils a different title, label 1 with low confidence.",
+  ].join("\n");
+  const CHUNK = 40;
+  async function prelabel(batch) {
+    if (!state.sample || state.prelabelling.has(batch.id)) return;
+    const sentences = batch.sentences || [];
+    const existing = state.labels.get(batch.id + "__" + CLAUDE);
+    const done = existing ? existing.labels || {} : {};
+    const todo = sentences.map((s, i) => ({ i, s })).filter(x => !done[x.i]);
+    if (!todo.length) return;
+    state.prelabelling.add(batch.id); render();
+    const ref = state.db.collection("labels").doc(batch.id + "__" + CLAUDE);
+    let created = !!existing;
+    try {
+      for (let k = 0; k < todo.length; k += CHUNK) {
+        const part = todo.slice(k, k + CHUNK).map(x => ({ i: x.i, previous: x.s.context || "", sentence: x.s.text }));
+        const prompt = RULES + "\n\nTitle: " + batch.title + "\n\nSentences as JSON:\n" + JSON.stringify(part) +
+          '\n\nReply with only a JSON array with one object per sentence, in the same order: {"i": number, "label": 0 or 1, "confidence": "high" or "low", "reason": "at most 12 words"}.';
+        const reply = await state.sample.json(prompt, { modelTier: "default" });
+        if (!Array.isArray(reply)) throw { code: "invalid_json" };
+        const out = {};
+        for (const r of reply) {
+          const i = Number(r && r.i), l = Number(r && r.label);
+          if (!Number.isInteger(i) || i < 0 || i >= sentences.length || (l !== 0 && l !== 1)) continue;
+          out[i] = { l, u: r.confidence === "low", r: String(r.reason || "").slice(0, 160), at: Date.now() };
+        }
+        // Save each chunk as it lands, so a failure part-way keeps what's done.
+        if (created) await ref.update({ labels: out });
+        else { await ref.set({ batchId: batch.id, labeller: CLAUDE, labels: out }); created = true; }
+      }
+    } catch (e) {
+      const code = e && e.code;
+      if (code === "not_granted" || code === "sampling_disabled" || code === "not_declared" || code === "capability_disabled" || code === "capability_removed") {
+        state.sample = null;
+        showStatus("Claude pre-labelling isn't available in this view. You can still label everything yourself.", true);
+      } else if (code === "rate_limited") {
+        showStatus("Claude is busy or your usage limit was reached. Try pre-labelling again later from the Add sentences tab.", true);
+      } else {
+        showStatus("Claude couldn't finish pre-labelling \u201c" + batch.title + "\u201d. Try again from the Add sentences tab.", true);
+      }
+    } finally {
+      state.prelabelling.delete(batch.id); render();
+    }
+  }
+  function needsPrelabel(b) {
+    const doc = state.labels.get(b.id + "__" + CLAUDE);
+    const n = doc && doc.labels ? Object.keys(doc.labels).length : 0;
+    return n < (b.sentences || []).length;
   }
 
   // ---------- Label view ----------
@@ -408,7 +492,20 @@
       unsureBtn,
       el("button", { class: "btn ghost", type: "button", disabled: state.history.length === 0, onclick: goBack }, "Back ", el("kbd", { text: "Z" })));
     const hint = el("p", { class: "hint", text: "Unsure still records your best guess. It marks the sentence as genuinely ambiguous." });
-    card.append(meta, el("h3", { text: "Previous sentence" }), ctx, el("h3", { text: "Label this sentence" }), box, actions, hint);
+    const cl = claudeLabel(item.batch.id, item.idx);
+    let suggest = null;
+    if (isBlind(item.batch.id, item.idx)) {
+      suggest = el("div", { class: "suggest blind" }, el("span", { class: "who", text: "Blind" }), el("span", { text: "Decide without Claude's label. This checks how often Claude is right." }));
+    } else if (cl) {
+      suggest = el("div", { class: "suggest" },
+        el("span", { class: "who", text: "Claude says" }),
+        el("span", { class: "verdict" + cl.l, text: (cl.l ? "Spoiler" : "Not a spoiler") + (cl.u ? " (low confidence)" : "") }),
+        cl.r ? el("span", { class: "why", text: cl.r }) : null,
+        el("span", { class: "muted", style: "margin-left:auto;font-size:0.8rem" }, "Agree: ", el("kbd", { text: "Enter" })));
+    } else if (state.prelabelling.has(item.batch.id)) {
+      suggest = el("div", { class: "suggest" }, el("span", { class: "working", text: "Claude is pre-labelling this thread…" }));
+    }
+    card.append(meta, el("h3", { text: "Previous sentence" }), ctx, el("h3", { text: "Label this sentence" }), box, suggest, actions, hint);
   }
   function toggleUnsure() { state.unsure = !state.unsure; renderLabel(); }
   function goBack() {
@@ -440,29 +537,37 @@
     else if (e.key === "0") { e.preventDefault(); decide(0); }
     else if (e.key === "u" || e.key === "U") { e.preventDefault(); toggleUnsure(); }
     else if (e.key === "z" || e.key === "Z") { e.preventDefault(); goBack(); }
+    // Enter on a focused button inside the card already clicks it; elsewhere
+    // (the tab bar, the page) Enter means "agree with Claude".
+    else if (e.key === "Enter" && !(t && t.closest && t.closest("#label-card") && (t.tagName === "BUTTON" || t.tagName === "A"))) {
+      const it = nextItem();
+      const cl = it && !isBlind(it.batch.id, it.idx) ? claudeLabel(it.batch.id, it.idx) : null;
+      if (cl) { e.preventDefault(); decide(cl.l); }
+    }
   });
 
   function siteName(s) { return ({ reddit: "Reddit", letterboxd: "Letterboxd", youtube: "YouTube" })[s] || "Other"; }
 
   // ---------- Progress ----------
-  const GOAL_MINE = 500, GOAL_DOUBLE = 200;
+  const GOAL_MINE = 500, GOAL_BLIND = 125;
   function renderProgress() {
     const p = $("progress");
     p.replaceChildren(el("h3", { text: "Progress" }));
     const items = allItems();
-    let mine = 0, mySpoil = 0, double = 0;
+    let mine = 0, mySpoil = 0, blindDone = 0, pre = 0;
     for (const it of items) {
       const m = myLabel(it.batch.id, it.idx);
       if (m) { mine++; if (m.l === 1) mySpoil++; }
-      if (labelsFor(it.batch.id, it.idx).length >= 2) double++;
+      if (claudeLabel(it.batch.id, it.idx)) { pre++; if (m && isBlind(it.batch.id, it.idx)) blindDone++; }
     }
     const stat = (label, value, frac) => el("div", { class: "stat" },
       el("span", { class: "label", text: label }), el("span", { class: "value", text: value }),
       frac == null ? null : el("div", { class: "meter", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(Math.round(frac * 100)), "aria-label": label }, el("i", { style: "width:" + Math.min(100, frac * 100).toFixed(1) + "%" })));
     p.append(
       stat("Sentences in the pool", String(items.length)),
-      stat("Labelled by you", mine + " / " + GOAL_MINE, mine / GOAL_MINE),
-      stat("Labelled by two people", double + " / " + GOAL_DOUBLE, double / GOAL_DOUBLE),
+      stat("Pre-labelled by Claude", String(pre)),
+      stat("Reviewed by you", mine + " / " + GOAL_MINE, mine / GOAL_MINE),
+      stat("Blind checks done", blindDone + " / " + GOAL_BLIND, blindDone / GOAL_BLIND),
       stat("Your spoiler share", mine ? Math.round(100 * mySpoil / mine) + "%" : "–"));
   }
 
@@ -521,9 +626,10 @@
     if (keep.length > 400) { msg.className = "msg err"; msg.textContent = "That's over 400 sentences. Split it into smaller threads."; return; }
     $("add-btn").disabled = true;
     try {
-      await state.db.collection("batches").add({ title, link, site: $("f-site").value, createdAt: Date.now(), addedBy: state.me.id, sentences: keep });
-      msg.className = "msg ok"; msg.textContent = "Added " + keep.length + " sentences to the queue.";
+      const ref = await state.db.collection("batches").add({ title, link, site: $("f-site").value, createdAt: Date.now(), addedBy: state.me.id, sentences: keep });
+      msg.className = "msg ok"; msg.textContent = "Added " + keep.length + " sentences." + (state.sample ? " Claude is pre-labelling them now." : "");
       $("f-text").value = ""; $("f-link").value = ""; renderPreview();
+      prelabel({ id: ref.id, title, sentences: keep });
     } catch (err) {
       msg.className = "msg err"; msg.textContent = dbErrorText(err);
     } finally { updateAddBtn(); }
@@ -541,10 +647,13 @@
     for (const b of [...state.batches].reverse()) {
       const who = people[b.addedBy] ? (people[b.addedBy].name || "Someone") : "Someone";
       const rm = el("button", { class: "btn ghost", type: "button", onclick: () => removeBatch(b) }, confirming.has(b.id) ? "Confirm remove" : "Remove");
+      const pl = state.prelabelling.has(b.id)
+        ? el("span", { class: "working", text: "Claude is labelling…" })
+        : needsPrelabel(b) && state.sample ? el("button", { class: "btn ghost", type: "button", onclick: () => prelabel(b) }, "Pre-label") : null;
       tb.append(el("tr", {},
         el("td", {}, el("div", { text: b.title }), el("div", { class: "muted", style: "font-size:0.8rem", text: siteName(b.site) + ", added by " + who })),
         el("td", { class: "num", text: String((b.sentences || []).length) }),
-        el("td", {}, rm)));
+        el("td", {}, el("div", { class: "actions" }, pl, rm))));
     }
     table.append(tb);
     box.append(el("div", { class: "table-wrap" }, table));
@@ -578,8 +687,39 @@
   async function renderAgreement() {
     const ids = labellerIds();
     const people = state.user && ids.length ? await state.user.profiles(ids) : {};
-    const nameOf = id => (people[id] && people[id].name) || (state.me && id === state.me.id ? "You" : "Someone");
+    const nameOf = id => id === CLAUDE ? "Claude" : (people[id] && people[id].name) || (state.me && id === state.me.id ? "You" : "Someone");
     const items = allItems();
+    // You and Claude, blind sentences only.
+    const cbox = $("claude-agree"); cbox.replaceChildren();
+    const mineId = state.me && state.me.id;
+    const blindPairs = [], shown = { n: 0, kept: 0 };
+    for (const it of items) {
+      const m = myLabel(it.batch.id, it.idx), c = claudeLabel(it.batch.id, it.idx);
+      if (!m || !c) continue;
+      if (isBlind(it.batch.id, it.idx)) blindPairs.push([m.l, c.l]);
+      else { shown.n++; if (m.l === c.l) shown.kept++; }
+    }
+    if (!mineId || (!blindPairs.length && !shown.n)) {
+      cbox.append(el("p", { class: "muted", text: "Nothing to compare yet. Review some of Claude's pre-labelled sentences first." }));
+    } else {
+      const r = kappa(blindPairs);
+      const [cls, txt] = verdict(r);
+      const t = el("table", {}, el("thead", {}, el("tr", {}, ...["Check", "Sentences", "Agreement", "Kappa", ""].map(h => el("th", { text: h })))));
+      const keptRate = shown.n ? shown.kept / shown.n : NaN;
+      t.append(el("tbody", {},
+        el("tr", {}, el("td", { text: "Blind: you vs Claude" }), el("td", { class: "num", text: String(r.n) }),
+          el("td", { class: "num", text: Number.isNaN(r.po) ? "–" : Math.round(r.po * 100) + "%" }),
+          el("td", { class: "num", text: Number.isNaN(r.k) ? "–" : r.k.toFixed(2) }),
+          el("td", {}, el("span", { class: "pill " + cls, text: txt }))),
+        el("tr", {}, el("td", { text: "Shown: you kept Claude's label" }), el("td", { class: "num", text: String(shown.n) }),
+          el("td", { class: "num", text: Number.isNaN(keptRate) ? "–" : Math.round(keptRate * 100) + "%" }),
+          el("td", { class: "num", text: "" }), el("td", {}))));
+      cbox.append(el("div", { class: "table-wrap" }, t));
+      if (r.n >= 30 && !Number.isNaN(keptRate) && keptRate - r.po > 0.1) {
+        cbox.append(el("p", { class: "msg", style: "margin-top:10px", text: "You keep Claude's label noticeably more often when you can see it than you agree with it blind. Slow down on shown sentences and judge them yourself first." }));
+      }
+    }
+
     const box = $("kappa"); box.replaceChildren();
     const rows = [];
     for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
@@ -592,7 +732,7 @@
       if (pairs.length) rows.push({ a: ids[i], b: ids[j], ...kappa(pairs) });
     }
     if (!rows.length) {
-      box.append(el("p", { class: "muted", text: "No sentence has been labelled by two people yet. Ask your co-labeller to open this page and label the same threads. They won't see your labels." }));
+      box.append(el("p", { class: "muted", text: "No sentence has been labelled by two people. That's fine: the blind check above covers agreement. A second person is optional." }));
     } else {
       const t = el("table", {}, el("thead", {}, el("tr", {}, ...["Labellers", "Shared", "Agreement", "Kappa", ""].map(h => el("th", { text: h })))));
       const tb = el("tbody");
@@ -610,7 +750,10 @@
     }
     // Disagreements
     const dbox = $("disagreements"); dbox.replaceChildren();
-    const dis = items.filter(it => { const ls = labelsFor(it.batch.id, it.idx); return ls.length >= 2 && new Set(ls.map(x => x.l)).size > 1; });
+    const dis = items.filter(it => {
+      const ls = labelsFor(it.batch.id, it.idx);
+      return ls.some(x => x.labeller !== CLAUDE) && ls.length >= 2 && new Set(ls.map(x => x.l)).size > 1;
+    });
     if (!dis.length) { dbox.append(el("p", { class: "muted", text: "None so far." })); }
     for (const it of dis.slice(0, 100)) {
       const ls = labelsFor(it.batch.id, it.idx);
@@ -630,7 +773,7 @@
   function buildExport() {
     const lines = []; let agreed = 0, open = 0;
     for (const it of allItems()) {
-      const ls = labelsFor(it.batch.id, it.idx);
+      const ls = humanLabelsFor(it.batch.id, it.idx);
       if (!ls.length) continue;
       const values = new Set(ls.map(x => x.l));
       const label = values.size === 1 ? ls[0].l : null;
@@ -645,7 +788,7 @@
   }
   function renderExportSummary() {
     const x = buildExport();
-    $("export-summary").textContent = x.n ? x.n + " labelled sentences: " + x.agreed + " with an agreed label, " + x.open + " waiting for review." : "Nothing labelled yet.";
+    $("export-summary").textContent = x.n ? x.n + " reviewed sentences: " + x.agreed + " with a settled label, " + x.open + " where people disagree." : "Nothing reviewed yet.";
     $("export-btn").disabled = !x.n;
   }
   $("export-btn").addEventListener("click", async () => {
@@ -693,8 +836,8 @@
   (async () => {
     const claude = window.claude;
     if (!claude || !claude.use) { showStatus("Shared storage isn't available in this view, so labels can't be saved. Open the page on claude.ai.", true); renderWho(); return; }
-    const [db, user, downloads] = await Promise.all([claude.use("db"), claude.use("user"), claude.use("downloads")]);
-    state.db = db; state.user = user; state.downloads = downloads;
+    const [db, user, downloads, sample] = await Promise.all([claude.use("db"), claude.use("user"), claude.use("downloads"), claude.use("sample")]);
+    state.db = db; state.user = user; state.downloads = downloads; state.sample = sample;
     state.me = user ? await user.me() : null;
     renderWho();
     if (!db) { showStatus("Shared storage isn't available in this view, so labels can't be saved.", true); render(); return; }
