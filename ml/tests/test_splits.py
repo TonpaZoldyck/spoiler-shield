@@ -57,3 +57,13 @@ def test_subsample_is_deterministic_and_bounded(synthetic):
     assert a == subsample(list(reversed(synthetic)), 100)
     assert subsample(synthetic[:10], 100) == synthetic[:10]
     assert all(isinstance(x, Example) for x in a)
+
+
+def test_title_sample_fraction_and_determinism():
+    from spoiler_shield.data.splits import in_title_sample
+
+    ids = [f"t{i}" for i in range(20_000)]
+    kept = [t for t in ids if in_title_sample(t, 0.05)]
+    assert abs(len(kept) / len(ids) - 0.05) < 0.01
+    assert kept == [t for t in ids if in_title_sample(t, 0.05)]
+    assert all(in_title_sample(t, 1.0) for t in ids[:10])

@@ -23,9 +23,20 @@ def _build_parser() -> argparse.ArgumentParser:
     spike.add_argument("--out", default="../extension/public/models/spike", help="Output directory")
     spike.add_argument("--seed", type=int, default=0)
 
+    dl = sub.add_parser(
+        "download", help="Download raw datasets into data/raw and verify checksums."
+    )
+    dl.add_argument("sources", nargs="*", help="Source names (default: all)")
+    dl.add_argument("--raw-dir", type=Path, default=Path("../data/raw"))
+    dl.add_argument("--force", action="store_true", help="Download again even if verified")
+
     prep = sub.add_parser("prepare", help="Convert raw datasets into one examples.jsonl file.")
     prep.add_argument("--goodreads", type=Path, help="goodreads_reviews_spoiler.json(.gz)")
+    prep.add_argument("--goodreads-works", type=Path, help="goodreads_book_works.json.gz (titles)")
     prep.add_argument("--imdb", type=Path, help="IMDB_reviews.json")
+    prep.add_argument(
+        "--title-fraction", type=float, default=1.0, help="Keep this share of titles (grouped)"
+    )
     prep.add_argument("--out", type=Path, default=Path("../data/processed/examples.jsonl"))
 
     base = sub.add_parser("baselines", help="Fit the baselines and write an evaluation report.")
@@ -42,14 +53,20 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def _prepare(args: argparse.Namespace) -> int:
     from spoiler_shield.data.schema import write_jsonl
-    from spoiler_shield.data.sources import goodreads_examples, imdb_examples
+    from spoiler_shield.data.sources import goodreads_examples, goodreads_titles, imdb_examples
+    from spoiler_shield.data.splits import in_title_sample
 
     if not args.goodreads and not args.imdb:
         print("prepare: give --goodreads and/or --imdb", file=sys.stderr)
         return 2
     streams = []
+
+    def keep(title_id: str) -> bool:
+        return in_title_sample(title_id, args.title_fraction)
+
     if args.goodreads:
-        streams.append(goodreads_examples(args.goodreads))
+        titles = goodreads_titles(args.goodreads_works) if args.goodreads_works else {}
+        streams.append(goodreads_examples(args.goodreads, titles=titles, keep_title=keep))
     if args.imdb:
         streams.append(imdb_examples(args.imdb))
     counts: Counter[tuple[str, str]] = Counter()
@@ -59,8 +76,15 @@ def _prepare(args: argparse.Namespace) -> int:
             counts[(ex.source, str(ex.label))] += 1
             yield ex
 
-    n = write_jsonl(args.out, counted())
-    print(f"wrote {n} examples to {args.out}")
+    titled = Counter()
+
+    def tracked():
+        for ex in counted():
+            titled[bool(ex.title)] += 1
+            yield ex
+
+    n = write_jsonl(args.out, tracked())
+    print(f"wrote {n} examples to {args.out}; {titled[True] / max(n, 1):.0%} have a title")
     for (source, label), c in sorted(counts.items()):
         print(f"  {source:10s} label={label:5s} {c}")
     return 0
@@ -106,6 +130,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         from spoiler_shield.export.spike import build_spike_model
 
         build_spike_model(out_dir=args.out, seed=args.seed)
+        return 0
+    if args.command == "download":
+        from spoiler_shield.data.download import SOURCES, download
+
+        for name in args.sources or list(SOURCES):
+            download(name, args.raw_dir, force=args.force)
         return 0
     if args.command == "prepare":
         return _prepare(args)

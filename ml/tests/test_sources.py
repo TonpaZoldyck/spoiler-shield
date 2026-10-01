@@ -63,3 +63,29 @@ def test_imdb_review_level_flags_become_unlabelled_or_negative(tmp_path):
     assert all(r.label is None for r in flagged)  # awaits the Phase 2 labeller
     assert all(r.label == 0 for r in clean)
     assert {r.title_id for r in rows} == {"imdb:tt001"}
+
+
+def test_goodreads_titles_and_title_filter(tmp_path):
+    works = tmp_path / "works.json"
+    works.write_text(
+        json.dumps({"best_book_id": "42", "original_title": "The Lighthouse"})
+        + "\n"
+        + json.dumps({"best_book_id": "7", "original_title": ""})
+        + "\n"
+    )
+    from spoiler_shield.data.sources import goodreads_titles
+
+    assert goodreads_titles(works) == {"42": "The Lighthouse"}
+
+    reviews = tmp_path / "reviews.json"
+    reviews.write_text(
+        "\n".join(
+            json.dumps(
+                {"book_id": b, "review_id": f"r{b}", "review_sentences": [[0, "A fine sentence."]]}
+            )
+            for b in ("42", "7")
+        )
+        + "\n"
+    )
+    rows = list(goodreads_examples(reviews, keep_title=lambda t: t == "goodreads:42"))
+    assert [r.title_id for r in rows] == ["goodreads:42"]

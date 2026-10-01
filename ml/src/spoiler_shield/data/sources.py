@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import gzip
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import IO, Any
 
@@ -42,11 +42,36 @@ def _json_lines(path: str | Path) -> Iterator[dict[str, Any]]:
                 yield json.loads(line)
 
 
-def goodreads_examples(path: str | Path, titles: dict[str, str] | None = None) -> Iterator[Example]:
-    """Sentence-level examples from ``goodreads_reviews_spoiler.json(.gz)``."""
+def goodreads_titles(works_path: str | Path) -> dict[str, str]:
+    """Map Goodreads book ids to titles from ``goodreads_book_works.json.gz``.
+
+    The works file names each work's *best* edition, so reviews of other
+    editions stay untitled. Coverage is reported by ``prepare``.
+    """
+    titles: dict[str, str] = {}
+    for work in _json_lines(works_path):
+        book_id = str(work.get("best_book_id") or "")
+        title = (work.get("original_title") or "").strip()
+        if book_id and title:
+            titles[book_id] = title
+    return titles
+
+
+def goodreads_examples(
+    path: str | Path,
+    titles: dict[str, str] | None = None,
+    keep_title: Callable[[str], bool] | None = None,
+) -> Iterator[Example]:
+    """Sentence-level examples from ``goodreads_reviews_spoiler.json(.gz)``.
+
+    ``keep_title`` filters by title id before any sentence work, which is how
+    ``prepare`` takes a title-grouped sample of the 17M-sentence corpus.
+    """
     titles = titles or {}
     for review in _json_lines(path):
         book_id = str(review["book_id"])
+        if keep_title is not None and not keep_title(f"goodreads:{book_id}"):
+            continue
         review_id = str(review["review_id"])
         previous = ""
         for i, (label, raw) in enumerate(review["review_sentences"]):

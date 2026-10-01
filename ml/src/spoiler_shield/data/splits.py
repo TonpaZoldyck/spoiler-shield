@@ -87,3 +87,11 @@ def subsample(rows: list[Example], n: int, *, salt: str = DEFAULT_SALT) -> list[
         return hashlib.sha256(f"{salt}:sample:{ex.example_id}".encode()).digest()
 
     return sorted(rows, key=key)[:n]
+
+
+def in_title_sample(title_id: str, fraction: float, *, salt: str = DEFAULT_SALT) -> bool:
+    """Deterministically keep about ``fraction`` of titles, independent of splits."""
+    if fraction >= 1:
+        return True
+    digest = hashlib.sha256(f"{salt}:title-sample:{title_id}".encode()).digest()
+    return int.from_bytes(digest[:8], "big") / 2**64 < fraction
