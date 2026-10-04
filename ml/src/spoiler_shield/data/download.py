@@ -14,6 +14,7 @@ import hashlib
 import json
 import shutil
 import urllib.request
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -29,6 +30,8 @@ class Source:
     size: int | None
     """Expected size in bytes, when the host reports it."""
     citation: str
+    extract: bool = False
+    """Unzip the archive next to it after verification."""
 
 
 GOODREADS_BASE = "https://mcauleylab.ucsd.edu/public_datasets/gdrive/goodreads/"
@@ -53,6 +56,17 @@ SOURCES: dict[str, Source] = {
             "Mengting Wan, Julian McAuley. "
             "Item Recommendation on Monotonic Behavior Chains. RecSys 2018."
         ),
+    ),
+    "imdb-spoilers": Source(
+        name="imdb-spoilers",
+        # Kaggle serves public datasets without an API key; this redirects to
+        # Kaggle's storage bucket. Contains IMDB_reviews.json and
+        # IMDB_movie_details.json.
+        url="https://www.kaggle.com/api/v1/datasets/download/rmisra/imdb-spoiler-dataset",
+        filename="imdb-spoiler-dataset.zip",
+        size=347_575_137,
+        citation="Rishabh Misra. IMDB Spoiler Dataset. arXiv:2212.06034, 2022.",
+        extract=True,
     ),
 }
 
@@ -87,6 +101,7 @@ def download(name: str, raw_dir: str | Path, *, force: bool = False) -> Path:
 
     if dest.exists() and not force and name in sums and sha256_of(dest) == sums[name]:
         print(f"{name}: already present and verified")
+        _maybe_extract(src, dest)
         return dest
 
     tmp = dest.with_suffix(dest.suffix + ".part")
@@ -107,4 +122,15 @@ def download(name: str, raw_dir: str | Path, *, force: bool = False) -> Path:
         _save_checksums(sums)
         print(f"{name}: pinned SHA-256 {digest} in {CHECKSUMS.name}")
     print(f"{name}: ok, {dest.stat().st_size:,} bytes")
+    _maybe_extract(src, dest)
     return dest
+
+
+def _maybe_extract(src: Source, archive: Path) -> None:
+    if not src.extract:
+        return
+    with zipfile.ZipFile(archive) as zf:
+        missing = [n for n in zf.namelist() if not (archive.parent / n).exists()]
+        if missing:
+            zf.extractall(archive.parent, members=missing)
+            print(f"{src.name}: extracted {', '.join(missing)}")
